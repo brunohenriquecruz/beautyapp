@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Fraunces:ital,wght@0,300;0,600;1,300;1,600&display=swap');
+@import 'tailwindcss';
+
+@theme inline {
+  --color-primary: #9C2553;
+  --color-primary-light: #FCEEF4;
+  --color-primary-dark: #7A1A40;
+  --color-accent: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-bg: #FBF7F9;
+  --color-card: #FFFFFF;
+  --color-border: #EDE0E7;
+  --color-muted: #9C8A93;
+  --color-text: #1C1019;
+  --font-sans: 'Nunito', sans-serif;
+  --font-display: 'Fraunces', serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: 'Nunito', sans-serif;
+  background-color: #FBF7F9;
+  color: #1C1019;
+  overscroll-behavior: none;
+}
+
+/* Hide scrollbars but allow scrolling */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
+
+/* Mobile-first: max-width container centered on desktop */
+.app-root {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+  background: #FBF7F9;
+  box-shadow: 0 0 60px rgba(156, 37, 83, 0.08);
+}
+
+@media (min-width: 431px) {
+  body {
+    background: #F0E8EE;
+  }
+}
+
+/* Custom currency input */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { opacity: 0; }
+
+/* Smooth transitions */
+.page-enter {
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0e0ea 25%, #faf0f5 50%, #f0e0ea 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}

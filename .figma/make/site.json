@@ -1,0 +1,10 @@
+{
+  "description": "Manage cosmetics sales, clients, inventory, and finances with an intuitive app designed for resellers to boost efficiency and profitability.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
