@@ -59,7 +59,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   return (
     <div className="pb-24 page-enter">
-      <TopBar title="Beauty Gestao" showSearch />
+      <TopBar title="BellaFlow" showSearch />
 
       <div className="bg-brand-gradient px-5 pt-5 pb-8">
         <p className="flex items-center gap-2 text-white/75 text-sm font-600">
@@ -78,7 +78,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         </div>
       </div>
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 mt-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <KpiCard label="Vendas do Mes" value={fmt(monthRevenue)} sub={`${monthSales.length} vendas`} tone="aqua" icon={TrendingUp} />
           <KpiCard label="Lucro do Mes" value={fmt(monthProfit)} sub={monthProfit >= 0 ? "Positivo" : "Atencao"} tone={monthProfit >= 0 ? "green" : "red"} icon={DollarSign} />
@@ -150,7 +150,7 @@ function KpiCard({ label, value, sub, tone, icon: Icon, onClick }: { label: stri
   return (
     <button
       onClick={onClick}
-      className={`bg-gradient-to-br ${toneMap[tone]} border rounded-2xl p-3.5 text-left w-full active:scale-95 transition-transform ${onClick ? "" : "cursor-default"}`}
+      className={`bg-white bg-gradient-to-br ${toneMap[tone]} border rounded-2xl p-3.5 text-left w-full shadow-[0_14px_32px_rgba(8,175,200,0.13)] active:scale-95 transition-transform ${onClick ? "" : "cursor-default"}`}
     >
       <div className="mb-2 h-10 w-10 rounded-xl icon-gradient-main flex items-center justify-center">
         <Icon className="h-[22px] w-[22px]" strokeWidth={2.25} />

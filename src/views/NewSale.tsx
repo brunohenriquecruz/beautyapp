@@ -1,28 +1,62 @@
-import { useState } from 'react';
-import { useApp } from '../context/AppContext';
-import type { Client, Product, SaleItem, Installment } from '../types';
+import {
+  Banknote,
+  CalendarDays,
+  CheckCircle2,
+  ChevronLeft,
+  CreditCard,
+  Minus,
+  Package,
+  Phone,
+  Search,
+  Send,
+  ShoppingBag,
+  User,
+  WalletCards,
+  Zap,
+} from "lucide-react";
+import { useState } from "react";
+import type React from "react";
+import { useApp } from "../context/AppContext";
+import type { Client, Installment, Product, SaleItem } from "../types";
 
-const fmt = (n: number) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 interface NewSaleProps {
   onBack: () => void;
   onComplete: () => void;
 }
 
-type Step = 'client' | 'products' | 'payment' | 'confirm';
+type Step = "client" | "products" | "payment" | "confirm";
+type PaymentMethod = "dinheiro" | "pix" | "credito" | "debito" | "parcelado";
+type IconComponent = React.ComponentType<{ className?: string; strokeWidth?: number }>;
+
+const steps: { id: Step; label: string }[] = [
+  { id: "client", label: "Cliente" },
+  { id: "products", label: "Itens" },
+  { id: "payment", label: "Pagamento" },
+  { id: "confirm", label: "Revisao" },
+];
+
+const paymentOptions: { value: PaymentMethod; label: string; icon: IconComponent }[] = [
+  { value: "pix", label: "Pix", icon: Zap },
+  { value: "dinheiro", label: "Dinheiro", icon: Banknote },
+  { value: "credito", label: "Credito", icon: CreditCard },
+  { value: "debito", label: "Debito", icon: CreditCard },
+  { value: "parcelado", label: "Parcelado", icon: CalendarDays },
+];
 
 export default function NewSale({ onBack, onComplete }: NewSaleProps) {
-  const { clients, products, addSale, searchQuery, setSearchQuery } = useApp();
-  const [step, setStep] = useState<Step>('client');
+  const { clients, products, addSale } = useApp();
+  const [step, setStep] = useState<Step>("client");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [discount, setDiscount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState<'dinheiro'|'pix'|'credito'|'debito'|'parcelado'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("pix");
   const [installmentCount, setInstallmentCount] = useState(2);
-  const [productSearch, setProductSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const subtotal = cart.reduce((a, i) => a + (i.unitPrice * i.quantity * (1 - i.discount / 100)), 0);
+  const subtotal = cart.reduce((a, i) => a + i.unitPrice * i.quantity * (1 - i.discount / 100), 0);
   const total = Math.max(0, subtotal * (1 - discount / 100));
 
   const addToCart = (product: Product) => {
@@ -40,9 +74,9 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
 
   const buildInstallments = (): Installment[] => {
     const instValue = total / installmentCount;
-    const today = new Date();
+    const baseDate = new Date();
     return Array.from({ length: installmentCount }, (_, k) => {
-      const dueDate = new Date(today);
+      const dueDate = new Date(baseDate);
       dueDate.setMonth(dueDate.getMonth() + k + 1);
       return {
         id: `${Date.now()}-${k}`,
@@ -56,8 +90,7 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
 
   const handleFinish = () => {
     if (!selectedClient || cart.length === 0) return;
-    const isInstallment = paymentMethod === 'parcelado';
-    const installments = isInstallment ? buildInstallments() : undefined;
+    const isInstallment = paymentMethod === "parcelado";
 
     addSale({
       clientId: selectedClient.id,
@@ -68,84 +101,96 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
       total,
       paymentMethod,
       installmentCount: isInstallment ? installmentCount : undefined,
-      installments,
-      status: isInstallment ? 'parcial' : 'pago',
+      installments: isInstallment ? buildInstallments() : undefined,
+      status: isInstallment ? "parcial" : "pago",
       date: new Date().toISOString().slice(0, 10),
     });
 
     setSuccess(true);
-    setTimeout(() => { setSuccess(false); onComplete(); }, 2000);
+    setTimeout(() => {
+      setSuccess(false);
+      onComplete();
+    }, 1600);
   };
 
-  const filteredProducts = products.filter(p =>
-    !productSearch || p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.code.includes(productSearch)
-  );
+  const filteredProducts = products.filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.code.includes(search));
+  const filteredClients = clients.filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search));
+  const paymentLabel = paymentOptions.find(p => p.value === paymentMethod)?.label || paymentMethod;
 
-  const filteredClients = clients.filter(c =>
-    !productSearch || c.name.toLowerCase().includes(productSearch.toLowerCase()) || c.phone.includes(productSearch)
-  );
-
-  if (success) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#FBF7F9] px-6 text-center page-enter">
-      <div className="w-24 h-24 bg-[#10B981]/10 rounded-full flex items-center justify-center mb-4 animate-bounce">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
+  if (success) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4FFFB] px-6 text-center page-enter">
+        <div className="w-24 h-24 icon-gradient-main rounded-3xl flex items-center justify-center mb-4 animate-bounce">
+          <CheckCircle2 className="h-12 w-12 text-white" strokeWidth={2.4} />
+        </div>
+        <h2 className="text-2xl font-900 text-[#102326]">Venda registrada</h2>
+        <p className="text-[#6D8185] font-700 mt-2">{fmt(total)} para {selectedClient?.name.split(" ")[0]}</p>
       </div>
-      <h2 className="text-2xl font-900 text-[#1C1019]">Venda registrada!</h2>
-      <p className="text-[#9C8A93] font-600 mt-2">{fmt(total)} para {selectedClient?.name.split(' ')[0]}</p>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#FBF7F9] flex flex-col page-enter">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#EDE0E7]">
-        <div className="flex items-center gap-3 px-4 h-14">
-          <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#FCEEF4] active:scale-95 transition-all">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9C2553" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+    <div className="min-h-screen bg-[#F4FFFB] flex flex-col page-enter">
+      <header className="sticky top-0 z-40 bg-white/92 backdrop-blur-md border-b border-[#D9EEF0]">
+        <div className="flex items-center gap-3 px-4 h-16">
+          <button onClick={onBack} className="w-9 h-9 icon-gradient flex shrink-0 items-center justify-center rounded-full active:scale-95 transition-all">
+            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
           </button>
-          <h1 className="font-900 text-[#1C1019] text-lg">Nova Venda</h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-900 text-[#102326] text-lg leading-tight">Nova Venda</h1>
+            <p className="text-[#6D8185] text-[11px] font-700">{steps.find(s => s.id === step)?.label}</p>
+          </div>
           {cart.length > 0 && (
-            <span className="ml-auto bg-[#9C2553] text-white text-xs font-700 px-2 py-0.5 rounded-full">{cart.length} item{cart.length > 1 ? 's' : ''}</span>
+            <span className="bg-[#E9FBF5] text-[#08AFC8] border border-[#BDEFF0] text-xs font-900 px-2.5 py-1 rounded-full">
+              {cart.length} item{cart.length > 1 ? "s" : ""}
+            </span>
           )}
         </div>
 
-        {/* Step indicator */}
-        <div className="flex px-4 pb-3 gap-2">
-          {(['client', 'products', 'payment', 'confirm'] as Step[]).map((s, i) => (
-            <div key={s} className={`flex-1 h-1 rounded-full transition-all ${
-              s === step ? 'bg-[#9C2553]' :
-              (['client', 'products', 'payment', 'confirm'].indexOf(step) > i) ? 'bg-[#9C2553]/40' : 'bg-[#EDE0E7]'
-            }`} />
-          ))}
+        <div className="px-4 pb-3">
+          <div className="grid grid-cols-4 gap-2">
+            {steps.map((s, i) => {
+              const activeIndex = steps.findIndex(x => x.id === step);
+              const isActive = s.id === step;
+              const isDone = activeIndex > i;
+              return (
+                <div key={s.id} className={`h-1.5 rounded-full transition-all ${isActive || isDone ? "bg-brand-gradient" : "bg-[#D9EEF0]"}`} />
+              );
+            })}
+          </div>
         </div>
       </header>
 
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-32 space-y-3">
-
-        {/* STEP 1: Select client */}
-        {step === 'client' && (
+        {step === "client" && (
           <>
-            <p className="font-800 text-[#1C1019] text-base">Selecione a cliente</p>
-            <input
-              value={productSearch} onChange={e => setProductSearch(e.target.value)}
-              placeholder="🔍 Buscar cliente..."
-              className="w-full bg-white border border-[#EDE0E7] rounded-2xl px-4 py-3 text-sm font-600 outline-none focus:border-[#9C2553] transition-colors"
-            />
+            <SectionTitle icon={User} title="Selecione a cliente" />
+            <SearchBox value={search} onChange={setSearch} placeholder="Buscar cliente..." />
             <div className="space-y-2">
               {filteredClients.map(client => (
-                <button key={client.id} onClick={() => { setSelectedClient(client); setProductSearch(''); setStep('products'); }}
-                  className={`w-full bg-white rounded-2xl px-4 py-3 border flex items-center gap-3 active:scale-98 transition-transform ${selectedClient?.id === client.id ? 'border-[#9C2553] bg-[#FCEEF4]' : 'border-[#EDE0E7]'}`}>
-                  <div className="w-10 h-10 rounded-xl bg-[#FCEEF4] flex items-center justify-center font-900 text-[#9C2553] shrink-0">
-                    {client.name.charAt(0)}
+                <button
+                  key={client.id}
+                  onClick={() => {
+                    setSelectedClient(client);
+                    setSearch("");
+                    setStep("products");
+                  }}
+                  className={`w-full bg-white rounded-2xl px-4 py-3 border flex items-center gap-3 active:scale-98 transition-transform shadow-[0_10px_24px_rgba(8,175,200,0.08)] ${selectedClient?.id === client.id ? "border-[#16C8DD]" : "border-[#D9EEF0]"}`}
+                >
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-900 shrink-0 ${client.balance > 0 ? "bg-red-50 text-red-500" : "icon-gradient-list"}`}>
+                    {client.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-left">
-                    <p className="font-700 text-sm text-[#1C1019]">{client.name}</p>
-                    <p className="text-[#9C8A93] text-xs">{client.phone}</p>
+                  <div className="text-left flex-1 min-w-0">
+                    <p className="font-800 text-sm text-[#102326] truncate">{client.name}</p>
+                    <p className="text-[#6D8185] text-xs flex items-center gap-1 mt-0.5">
+                      <Phone className="h-3 w-3" strokeWidth={2.1} />
+                      {client.phone}
+                    </p>
                   </div>
                   {client.balance > 0 && (
-                    <span className="ml-auto text-xs font-700 text-red-500 bg-red-50 px-2 py-0.5 rounded-full shrink-0">deve {fmt(client.balance)}</span>
+                    <span className="text-xs font-900 text-red-500 bg-red-50 border border-red-100 px-2 py-1 rounded-full shrink-0">
+                      Deve {fmt(client.balance)}
+                    </span>
                   )}
                 </button>
               ))}
@@ -153,60 +198,34 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
           </>
         )}
 
-        {/* STEP 2: Products */}
-        {step === 'products' && (
+        {step === "products" && (
           <>
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-8 rounded-full bg-[#FCEEF4] flex items-center justify-center font-900 text-[#9C2553] text-sm shrink-0">
-                {selectedClient?.name.charAt(0)}
-              </div>
-              <p className="font-700 text-[#1C1019]">{selectedClient?.name}</p>
-            </div>
-
-            {/* Cart summary */}
-            {cart.length > 0 && (
-              <div className="bg-white rounded-2xl border border-[#EDE0E7] p-3 space-y-2">
-                {cart.map(item => (
-                  <div key={item.productId} className="flex items-center gap-3">
-                    <p className="flex-1 text-xs font-600 text-[#1C1019] truncate">{item.productName}</p>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button onClick={() => updateQty(item.productId, item.quantity - 1)} className="w-6 h-6 rounded-full bg-[#FBF7F9] font-900 text-sm flex items-center justify-center active:scale-95">−</button>
-                      <span className="text-sm font-800 w-5 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQty(item.productId, item.quantity + 1)} className="w-6 h-6 rounded-full bg-[#FBF7F9] font-900 text-sm flex items-center justify-center active:scale-95">+</button>
-                    </div>
-                    <p className="text-sm font-800 text-[#9C2553] w-20 text-right shrink-0">{fmt(item.unitPrice * item.quantity)}</p>
-                  </div>
-                ))}
-                <div className="pt-2 border-t border-[#EDE0E7] flex justify-between">
-                  <span className="text-sm font-700 text-[#9C8A93]">Subtotal</span>
-                  <span className="text-sm font-900 text-[#1C1019]">{fmt(subtotal)}</span>
-                </div>
-              </div>
-            )}
-
-            <input
-              value={productSearch} onChange={e => setProductSearch(e.target.value)}
-              placeholder="🔍 Buscar produto..."
-              className="w-full bg-white border border-[#EDE0E7] rounded-2xl px-4 py-3 text-sm font-600 outline-none focus:border-[#9C2553] transition-colors"
-            />
-
+            <SelectedClient client={selectedClient} />
+            {cart.length > 0 && <CartSummary cart={cart} subtotal={subtotal} updateQty={updateQty} />}
+            <SearchBox value={search} onChange={setSearch} placeholder="Buscar produto..." />
             <div className="space-y-2">
               {filteredProducts.map(product => {
                 const inCart = cart.find(i => i.productId === product.id);
+                const outOfStock = product.stock === 0;
                 return (
-                  <button key={product.id} onClick={() => addToCart(product)}
-                    className={`w-full bg-white rounded-2xl border p-3 flex items-center gap-3 active:scale-98 transition-transform ${inCart ? 'border-[#9C2553] bg-[#FCEEF4]/30' : 'border-[#EDE0E7]'} ${product.stock === 0 ? 'opacity-50' : ''}`}
-                    disabled={product.stock === 0}>
-                    <div className="w-10 h-10 rounded-xl overflow-hidden bg-[#FCEEF4] shrink-0">
-                      {product.photo ? <img src={product.photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center">💄</div>}
+                  <button
+                    key={product.id}
+                    onClick={() => addToCart(product)}
+                    className={`w-full bg-white rounded-2xl border p-3 flex items-center gap-3 active:scale-98 transition-transform shadow-[0_10px_24px_rgba(8,175,200,0.08)] ${inCart ? "border-[#16C8DD] bg-[#E9FBF5]" : "border-[#D9EEF0]"} ${outOfStock ? "opacity-60" : ""}`}
+                    disabled={outOfStock}
+                  >
+                    <div className={`w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center ${outOfStock ? "bg-red-50 text-red-500" : "bg-[#E9FBF5] text-[#08AFC8]"}`}>
+                      {product.photo ? <img src={product.photo} alt="" className="w-full h-full object-cover" /> : <Package className="h-5 w-5" strokeWidth={2.2} />}
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                      <p className="font-700 text-sm text-[#1C1019] truncate">{product.name}</p>
-                      <p className="text-[#9C8A93] text-xs">{product.stock === 0 ? '❌ Sem estoque' : `${product.stock} unid. disponíveis`}</p>
+                      <p className="font-800 text-sm text-[#102326] truncate">{product.name}</p>
+                      <p className={`text-xs font-600 ${outOfStock ? "text-red-500" : "text-[#6D8185]"}`}>
+                        {outOfStock ? "Sem estoque" : `${product.stock} unid. disponiveis`}
+                      </p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-800 text-sm text-[#9C2553]">{fmt(product.salePrice)}</p>
-                      {inCart && <span className="text-[10px] font-700 bg-[#9C2553] text-white px-1.5 rounded-full">{inCart.quantity} un.</span>}
+                      <p className="font-900 text-sm text-[#08AFC8]">{fmt(product.salePrice)}</p>
+                      {inCart && <span className="text-[10px] font-800 bg-brand-gradient text-white px-1.5 rounded-full">{inCart.quantity} un.</span>}
                     </div>
                   </button>
                 );
@@ -215,103 +234,82 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
           </>
         )}
 
-        {/* STEP 3: Payment */}
-        {step === 'payment' && (
+        {step === "payment" && (
           <>
-            <p className="font-800 text-[#1C1019] text-base">Forma de pagamento</p>
-
-            {/* Discount */}
-            <div className="bg-white rounded-2xl border border-[#EDE0E7] p-4">
-              <p className="text-[#9C8A93] text-xs font-700 uppercase tracking-wide mb-3">Desconto geral (%)</p>
-              <div className="flex items-center gap-3">
+            <SectionTitle icon={WalletCards} title="Forma de pagamento" />
+            <Panel>
+              <p className="text-[#6D8185] text-xs font-800 uppercase tracking-wide mb-3">Desconto geral (%)</p>
+              <div className="flex items-center gap-2">
                 {[0, 5, 10, 15, 20].map(d => (
-                  <button key={d} onClick={() => setDiscount(d)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-700 transition-all ${discount === d ? 'bg-[#9C2553] text-white' : 'bg-[#FBF7F9] text-[#9C8A93]'}`}>
-                    {d === 0 ? 'Sem' : `${d}%`}
+                  <button key={d} onClick={() => setDiscount(d)} className={`flex-1 py-2 rounded-xl text-sm font-800 transition-all ${discount === d ? "bg-brand-gradient text-white" : "bg-[#F4FFFB] text-[#6D8185] border border-[#D9EEF0]"}`}>
+                    {d === 0 ? "Sem" : `${d}%`}
                   </button>
                 ))}
               </div>
-            </div>
+            </Panel>
 
-            {/* Payment methods */}
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: 'pix', label: 'Pix', icon: '⚡' },
-                { value: 'dinheiro', label: 'Dinheiro', icon: '💵' },
-                { value: 'credito', label: 'Crédito', icon: '💳' },
-                { value: 'debito', label: 'Débito', icon: '💳' },
-                { value: 'parcelado', label: 'Parcelado', icon: '📆' },
-              ].map(pm => (
-                <button key={pm.value} onClick={() => setPaymentMethod(pm.value as typeof paymentMethod)}
-                  className={`p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-95 ${paymentMethod === pm.value ? 'border-[#9C2553] bg-[#FCEEF4]' : 'border-[#EDE0E7] bg-white'}`}>
-                  <span className="text-2xl">{pm.icon}</span>
-                  <span className={`text-sm font-700 ${paymentMethod === pm.value ? 'text-[#9C2553]' : 'text-[#1C1019]'}`}>{pm.label}</span>
+              {paymentOptions.map(pm => (
+                <button
+                  key={pm.value}
+                  onClick={() => setPaymentMethod(pm.value)}
+                  className={`p-4 rounded-2xl border flex items-center gap-3 transition-all active:scale-95 shadow-[0_10px_24px_rgba(8,175,200,0.08)] ${paymentMethod === pm.value ? "border-[#16C8DD] bg-[#E9FBF5]" : "border-[#D9EEF0] bg-white"}`}
+                >
+                  <span className={`h-10 w-10 rounded-xl flex items-center justify-center ${paymentMethod === pm.value ? "icon-gradient-list" : "bg-[#F4FFFB] text-[#08AFC8]"}`}>
+                    <pm.icon className="h-5 w-5" strokeWidth={2.25} />
+                  </span>
+                  <span className="text-sm font-800 text-[#102326]">{pm.label}</span>
                 </button>
               ))}
             </div>
 
-            {/* Installment options */}
-            {paymentMethod === 'parcelado' && (
-              <div className="bg-white rounded-2xl border border-[#9C2553]/30 p-4">
-                <p className="text-[#9C8A93] text-xs font-700 uppercase tracking-wide mb-3">Número de parcelas</p>
+            {paymentMethod === "parcelado" && (
+              <Panel danger>
+                <p className="text-red-500 text-xs font-900 uppercase tracking-wide mb-3">Parcelas a receber</p>
                 <div className="grid grid-cols-4 gap-2">
                   {[2, 3, 4, 6].map(n => (
-                    <button key={n} onClick={() => setInstallmentCount(n)}
-                      className={`py-3 rounded-xl text-sm font-700 transition-all ${installmentCount === n ? 'bg-[#9C2553] text-white' : 'bg-[#FBF7F9] text-[#9C8A93]'}`}>
+                    <button key={n} onClick={() => setInstallmentCount(n)} className={`py-3 rounded-xl text-sm font-800 transition-all ${installmentCount === n ? "bg-red-500 text-white" : "bg-white text-red-500 border border-red-100"}`}>
                       {n}x
                     </button>
                   ))}
                 </div>
-                <div className="mt-3 bg-[#FBF7F9] rounded-xl p-3">
-                  <p className="text-[#9C8A93] text-xs font-600">Valor de cada parcela</p>
-                  <p className="text-[#9C2553] text-xl font-900">{fmt(total / installmentCount)}</p>
+                <div className="mt-3 bg-red-50 rounded-xl p-3 border border-red-100">
+                  <p className="text-red-400 text-xs font-800">Valor de cada parcela</p>
+                  <p className="text-red-500 text-xl font-900">{fmt(total / installmentCount)}</p>
                 </div>
-              </div>
+              </Panel>
             )}
 
-            {/* Total */}
-            <div className="bg-gradient-to-br from-[#9C2553] to-[#C2185B] rounded-2xl p-4 text-white">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-white/70 font-600">Subtotal</span>
-                <span className="font-700">{fmt(subtotal)}</span>
-              </div>
-              {discount > 0 && (
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-white/70 font-600">Desconto ({discount}%)</span>
-                  <span className="font-700 text-yellow-300">−{fmt(subtotal * discount / 100)}</span>
-                </div>
-              )}
-              <div className="flex justify-between pt-2 border-t border-white/20 mt-2">
-                <span className="text-white font-800">Total</span>
-                <span className="text-2xl font-900">{fmt(total)}</span>
-              </div>
-            </div>
+            <TotalCard subtotal={subtotal} discount={discount} total={total} />
           </>
         )}
 
-        {/* STEP 4: Confirm */}
-        {step === 'confirm' && (
+        {step === "confirm" && (
           <>
-            <p className="font-800 text-[#1C1019] text-base">Confirmar venda</p>
-            <div className="bg-white rounded-2xl border border-[#EDE0E7] p-4 space-y-3">
-              <Row label="Cliente" value={selectedClient?.name || ''} />
-              <Row label="Produtos" value={cart.map(i => `${i.quantity}x ${i.productName}`).join(', ')} />
-              <Row label="Pagamento" value={{ pix: '⚡ Pix', dinheiro: '💵 Dinheiro', credito: '💳 Crédito', debito: '💳 Débito', parcelado: `📆 ${installmentCount}x de ${fmt(total / installmentCount)}` }[paymentMethod]} />
-              {discount > 0 && <Row label="Desconto" value={`${discount}% (−${fmt(subtotal * discount / 100)})`} />}
-              <div className="pt-2 border-t border-[#EDE0E7] flex justify-between">
-                <span className="font-800 text-[#1C1019]">Total</span>
-                <span className="font-900 text-[#9C2553] text-lg">{fmt(total)}</span>
+            <SectionTitle icon={ShoppingBag} title="Confirmar venda" />
+            <Panel>
+              <Row label="Cliente" value={selectedClient?.name || ""} />
+              <Row label="Produtos" value={cart.map(i => `${i.quantity}x ${i.productName}`).join(", ")} />
+              <Row label="Pagamento" value={paymentMethod === "parcelado" ? `${installmentCount}x de ${fmt(total / installmentCount)}` : paymentLabel} />
+              {discount > 0 && <Row label="Desconto" value={`${discount}% (-${fmt(subtotal * discount / 100)})`} />}
+              <div className="pt-2 border-t border-[#D9EEF0] flex justify-between">
+                <span className="font-800 text-[#102326]">Total</span>
+                <span className="font-900 text-[#08AFC8] text-lg">{fmt(total)}</span>
               </div>
-            </div>
+            </Panel>
 
-            {/* Share via WhatsApp */}
-            <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-4">
-              <p className="text-emerald-700 text-sm font-700 mb-2">📱 Compartilhar comprovante</p>
+            <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-2xl p-4 shadow-[0_10px_24px_rgba(34,197,94,0.08)]">
+              <p className="text-emerald-700 text-sm font-800 mb-2 flex items-center gap-2">
+                <Send className="h-4 w-4" strokeWidth={2.2} />
+                Compartilhar comprovante
+              </p>
               <a
-                href={`https://wa.me/55${selectedClient?.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá ${selectedClient?.name.split(' ')[0]}! 💄\n\nSeu pedido foi registrado com sucesso!\n\n${cart.map(i => `• ${i.quantity}x ${i.productName} — ${fmt(i.unitPrice * i.quantity)}`).join('\n')}\n\n${discount > 0 ? `Desconto: ${discount}%\n` : ''}*Total: ${fmt(total)}*\n\nForma de pagamento: ${{ pix: 'Pix', dinheiro: 'Dinheiro', credito: 'Cartão Crédito', debito: 'Cartão Débito', parcelado: `Parcelado em ${installmentCount}x de ${fmt(total / installmentCount)}` }[paymentMethod]}\n\nObrigada pela preferência! 🌸`)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white font-700 rounded-xl py-3 active:scale-95 transition-transform">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.109.549 4.09 1.509 5.818L0 24l6.335-1.492A11.952 11.952 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 0 1-5.015-1.375l-.36-.214-3.732.979.996-3.648-.235-.373A9.818 9.818 0 1 1 12 21.818z"/></svg>
+                href={`https://wa.me/55${selectedClient?.phone.replace(/\D/g, "")}?text=${encodeURIComponent(`Ola ${selectedClient?.name.split(" ")[0]}!\n\nSeu pedido foi registrado com sucesso.\n\n${cart.map(i => `- ${i.quantity}x ${i.productName}: ${fmt(i.unitPrice * i.quantity)}`).join("\n")}\n\n${discount > 0 ? `Desconto: ${discount}%\n` : ""}Total: ${fmt(total)}\n\nForma de pagamento: ${paymentMethod === "parcelado" ? `Parcelado em ${installmentCount}x de ${fmt(total / installmentCount)}` : paymentLabel}\n\nObrigada pela preferencia!`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white font-800 rounded-xl py-3 active:scale-95 transition-transform"
+              >
+                <Send className="h-4 w-4" strokeWidth={2.3} />
                 Enviar via WhatsApp
               </a>
             </div>
@@ -319,30 +317,111 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
         )}
       </div>
 
-      {/* Bottom CTA */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white border-t border-[#EDE0E7] px-4 pt-3 pb-6">
-        {step === 'client' && (
-          <p className="text-center text-[#9C8A93] text-sm font-600">Toque em uma cliente para selecionar</p>
-        )}
-        {step === 'products' && (
-          <button onClick={() => { if (cart.length > 0) { setProductSearch(''); setStep('payment'); } }}
-            disabled={cart.length === 0}
-            className="w-full bg-[#9C2553] text-white font-800 rounded-2xl py-4 disabled:opacity-40 active:scale-95 transition-transform">
-            Continuar · {fmt(subtotal)}
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-white/96 backdrop-blur-md border-t border-[#D9EEF0] px-4 pt-3 pb-6 shadow-[0_-18px_40px_rgba(16,35,38,0.08)]">
+        {step === "client" && <p className="text-center text-[#6D8185] text-sm font-700">Toque em uma cliente para selecionar</p>}
+        {step === "products" && (
+          <button onClick={() => { if (cart.length > 0) { setSearch(""); setStep("payment"); } }} disabled={cart.length === 0} className="w-full bg-brand-gradient text-white font-900 rounded-2xl py-4 disabled:opacity-40 active:scale-95 transition-transform shadow-[0_14px_26px_rgba(31,205,226,0.22)]">
+            Continuar - {fmt(subtotal)}
           </button>
         )}
-        {step === 'payment' && (
-          <button onClick={() => setStep('confirm')}
-            className="w-full bg-[#9C2553] text-white font-800 rounded-2xl py-4 active:scale-95 transition-transform">
+        {step === "payment" && (
+          <button onClick={() => setStep("confirm")} className="w-full bg-brand-gradient text-white font-900 rounded-2xl py-4 active:scale-95 transition-transform shadow-[0_14px_26px_rgba(31,205,226,0.22)]">
             Revisar pedido
           </button>
         )}
-        {step === 'confirm' && (
-          <button onClick={handleFinish}
-            className="w-full bg-[#10B981] text-white font-800 rounded-2xl py-4 active:scale-95 transition-transform shadow-lg shadow-[#10B981]/30">
-            ✓ Confirmar venda — {fmt(total)}
+        {step === "confirm" && (
+          <button onClick={handleFinish} className="w-full bg-[#18B976] text-white font-900 rounded-2xl py-4 active:scale-95 transition-transform shadow-[0_14px_26px_rgba(24,185,118,0.24)]">
+            Confirmar venda - {fmt(total)}
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SectionTitle({ icon: Icon, title }: { icon: IconComponent; title: string }) {
+  return (
+    <p className="font-900 text-[#102326] text-base flex items-center gap-2">
+      <Icon className="h-5 w-5 text-[#08AFC8]" strokeWidth={2.4} />
+      {title}
+    </p>
+  );
+}
+
+function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (value: string) => void; placeholder: string }) {
+  return (
+    <label className="w-full bg-white border border-[#D9EEF0] rounded-2xl px-4 py-3 text-sm font-700 outline-none focus-within:border-[#16C8DD] transition-colors flex items-center gap-2 shadow-[0_10px_24px_rgba(8,175,200,0.08)]">
+      <Search className="h-4 w-4 text-[#08AFC8]" strokeWidth={2.3} />
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#6D8185]/70" />
+    </label>
+  );
+}
+
+function SelectedClient({ client }: { client: Client | null }) {
+  if (!client) return null;
+  return (
+    <div className={`rounded-2xl border px-4 py-3 flex items-center gap-3 shadow-[0_10px_24px_rgba(8,175,200,0.08)] ${client.balance > 0 ? "bg-red-50 border-red-100" : "bg-white border-[#D9EEF0]"}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-900 shrink-0 ${client.balance > 0 ? "bg-white text-red-500 border border-red-100" : "icon-gradient-list"}`}>
+        {client.name.charAt(0).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-800 text-[#102326] truncate">{client.name}</p>
+        <p className={`text-xs font-700 ${client.balance > 0 ? "text-red-500" : "text-[#6D8185]"}`}>
+          {client.balance > 0 ? `Saldo em aberto: ${fmt(client.balance)}` : "Cliente em dia"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CartSummary({ cart, subtotal, updateQty }: { cart: SaleItem[]; subtotal: number; updateQty: (productId: string, qty: number) => void }) {
+  return (
+    <Panel>
+      {cart.map(item => (
+        <div key={item.productId} className="flex items-center gap-3">
+          <p className="flex-1 text-xs font-700 text-[#102326] truncate">{item.productName}</p>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button onClick={() => updateQty(item.productId, item.quantity - 1)} className="w-7 h-7 rounded-full bg-[#F4FFFB] text-[#6D8185] font-900 text-sm flex items-center justify-center active:scale-95 border border-[#D9EEF0]">
+              <Minus className="h-3.5 w-3.5" strokeWidth={2.5} />
+            </button>
+            <span className="text-sm font-900 w-5 text-center">{item.quantity}</span>
+            <button onClick={() => updateQty(item.productId, item.quantity + 1)} className="w-7 h-7 rounded-full icon-gradient-list font-900 text-sm flex items-center justify-center active:scale-95">+</button>
+          </div>
+          <p className="text-sm font-900 text-[#08AFC8] w-20 text-right shrink-0">{fmt(item.unitPrice * item.quantity)}</p>
+        </div>
+      ))}
+      <div className="pt-2 border-t border-[#D9EEF0] flex justify-between">
+        <span className="text-sm font-800 text-[#6D8185]">Subtotal</span>
+        <span className="text-sm font-900 text-[#102326]">{fmt(subtotal)}</span>
+      </div>
+    </Panel>
+  );
+}
+
+function Panel({ children, danger }: { children: React.ReactNode; danger?: boolean }) {
+  return (
+    <div className={`bg-white rounded-2xl border p-4 space-y-3 shadow-[0_10px_24px_rgba(8,175,200,0.08)] ${danger ? "border-red-100 bg-red-50/45" : "border-[#D9EEF0]"}`}>
+      {children}
+    </div>
+  );
+}
+
+function TotalCard({ subtotal, discount, total }: { subtotal: number; discount: number; total: number }) {
+  return (
+    <div className="bg-brand-gradient rounded-2xl p-4 text-white shadow-[0_16px_30px_rgba(31,205,226,0.22)]">
+      <div className="flex justify-between text-sm mb-1">
+        <span className="text-white/70 font-700">Subtotal</span>
+        <span className="font-800">{fmt(subtotal)}</span>
+      </div>
+      {discount > 0 && (
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-white/70 font-700">Desconto ({discount}%)</span>
+          <span className="font-800 text-yellow-200">-{fmt(subtotal * discount / 100)}</span>
+        </div>
+      )}
+      <div className="flex justify-between pt-2 border-t border-white/20 mt-2">
+        <span className="text-white font-900">Total</span>
+        <span className="text-2xl font-900">{fmt(total)}</span>
       </div>
     </div>
   );
@@ -351,8 +430,8 @@ export default function NewSale({ onBack, onComplete }: NewSaleProps) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between gap-4">
-      <span className="text-[#9C8A93] text-sm font-600 shrink-0">{label}</span>
-      <span className="text-[#1C1019] text-sm font-700 text-right">{value}</span>
+      <span className="text-[#6D8185] text-sm font-700 shrink-0">{label}</span>
+      <span className="text-[#102326] text-sm font-800 text-right">{value}</span>
     </div>
   );
 }
